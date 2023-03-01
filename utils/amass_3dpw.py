@@ -68,7 +68,7 @@ class AMASS(Dataset):
         # np.savez_compressed('smpl_skeleton.npz', p3d0=p3d0, parents=parents)
 
         # load mean skeleton
-        skel = np.load('./body_models/smpl_skeleton.npz')
+        skel = np.load('./utils/body_models/smpl_skeleton.npz')
         p3d0 = torch.from_numpy(skel['p3d0']).float().cuda()
         parents = skel['parents']
         parent = {}
@@ -200,7 +200,7 @@ class D3DPW(Dataset):
         # p3d0 = lbs.vertices2joints(bm.J_regressor, v_shaped)  # [1,52,3]
         # p3d0 = (p3d0 - p3d0[:, 0:1, :]).float().cuda()[:, :22]
         # parents = bm.kintree_table.data.numpy()[0, :]
-        skel = np.load('./body_models/smpl_skeleton.npz')
+        skel = np.load('./utils/body_models/smpl_skeleton.npz')
         p3d0 = torch.from_numpy(skel['p3d0']).float().cuda()[:, :22]
         parents = skel['parents']
         parent = {}

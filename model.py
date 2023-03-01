@@ -3,11 +3,11 @@ import math
 import torch
 import torch.nn as nn
 import numpy as np
-from diffusion_model import diff_CSDI
+from utils.diffusion_util import diff_CSDI
 
 
-class ModelBase(nn.Module):
-    def __init__(self, target_dim, config, device):
+class ModelMain(nn.Module):
+    def __init__(self, config, device, target_dim=96):
         super().__init__()
         self.device = device
         self.target_dim = target_dim
@@ -42,14 +42,14 @@ class ModelBase(nn.Module):
         elif config_diff["schedule"] == "cosine":
             self.beta = self.betas_for_alpha_bar(
                 self.num_steps,
-                lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,  # def = 0.008
+                lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,
             )
 
         self.alpha_hat = 1 - self.beta
         self.alpha = np.cumprod(self.alpha_hat)
         self.alpha_torch = torch.tensor(self.alpha).float().to(self.device).unsqueeze(1).unsqueeze(1)
 
-    def betas_for_alpha_bar(self, num_diffusion_timesteps, alpha_bar, max_beta=0.5):  # defualt = max_beta = 0.999
+    def betas_for_alpha_bar(self, num_diffusion_timesteps, alpha_bar, max_beta=0.5):
         # """
         # Create a beta schedule that discretizes the given alpha_t_bar function,
         # which defines the cumulative product of (1-beta) over time from t = [0,1].
@@ -210,3 +210,17 @@ class ModelBase(nn.Module):
 
             samples = self.impute(observed_data, cond_mask, side_info, n_samples)
         return samples, observed_data, target_mask, observed_tp
+
+    def process_data(self, batch):
+        pose = batch["pose"].to(self.device).float()
+        tp = batch["timepoints"].to(self.device).float()
+        mask = batch["mask"].to(self.device).float()
+
+        pose = pose.permute(0, 2, 1)
+        mask = mask.permute(0, 2, 1)
+
+        return (
+            pose,
+            tp,
+            mask
+        )

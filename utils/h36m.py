@@ -4,12 +4,13 @@ import torch
 from torch.utils.data import Dataset
 from utils import data_utils
 import pathlib
+import math
 
 
 class H36M(Dataset):
 
-    def __init__(self, data_dir, input_n, output_n, skip_rate, actions=None, split=0, miss_rate=0.2, all_data=False,
-                 joints=32):
+    def __init__(self, data_dir, input_n, output_n, skip_rate, actions=None, split=0, miss_rate=0.2,
+                 miss_type='no_miss', all_data=False, joints=32):
         """
         :param path_to_data:
         :param actions:
@@ -24,6 +25,7 @@ class H36M(Dataset):
         self.in_n = input_n
         self.out_n = output_n
         self.miss_rate = miss_rate
+        self.miss_type = miss_type
         self.sample_rate = 2
         self.p3d = {}
         self.params = {}
@@ -40,7 +42,6 @@ class H36M(Dataset):
         else:
             acts = actions
 
-        print('Joints: ', joints, 'Path: ', pathlib.Path(__file__).parent.resolve())
 
         if joints == 17:
             self.dim_used = np.array(
@@ -48,9 +49,9 @@ class H36M(Dataset):
                  43, 44, 45, 46, 47, 51, 52, 53, 54, 55, 56, 57, 58, 59, 75, 76, 77, 78, 79, 80, 81, 82, 83])
         elif joints == 22:
             self.dim_used = np.array([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25,
-                                 26, 27, 28, 29, 30, 31, 32, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
-                                 46, 47, 51, 52, 53, 54, 55, 56, 57, 58, 59, 63, 64, 65, 66, 67, 68,
-                                 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 88, 89, 90, 91, 92])
+                                      26, 27, 28, 29, 30, 31, 32, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
+                                      46, 47, 51, 52, 53, 54, 55, 56, 57, 58, 59, 63, 64, 65, 66, 67, 68,
+                                      75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 88, 89, 90, 91, 92])
         else:
             self.dim_used = np.arange(96)
 
@@ -143,9 +144,120 @@ class H36M(Dataset):
         pose = self.p3d[key][fs]
         observed = pose.copy() / 1000.0
 
-        mask = np.zeros((pose.shape[0], pose.shape[1]))
-        mask[0:self.in_n, :] = 1
-        mask[self.in_n:self.in_n + self.out_n, :] = 0
+        if self.miss_type == 'no_miss':
+            mask = np.zeros((pose.shape[0], pose.shape[1]))
+            mask[0:self.in_n, :] = 1
+            mask[self.in_n:self.in_n + self.out_n, :] = 0
+        elif self.miss_type == 'random':
+            # Random Missing with Random Probability
+            mask = np.zeros((self.in_n, pose.shape[1] // 3, 3))
+            p_miss = np.random.uniform(0., 1., size=[self.in_n, pose.shape[1] // 3])
+            p_miss_rand = np.random.uniform(0., 1.)
+            mask[p_miss > p_miss_rand] = 1.0
+            mask = mask.reshape((self.in_n, pose.shape[1]))
+            predict = np.zeros((self.out_n, pose.shape[1]))
+            mask = np.concatenate((mask, predict), axis=0)
+        elif self.miss_type == 'random_joints':
+            # Random Joint Missing
+            mask = np.zeros((self.in_n, pose.shape[1]))
+            p_miss = self.miss_rate * np.ones((pose.shape[1], 1))
+            for i in range(0, pose.shape[1], 3):
+                A = np.random.uniform(0., 1., size=[self.in_n, ])
+                B = A > p_miss[i]
+                mask[:, i] = 1. * B
+                mask[:, i + 1] = 1. * B
+                mask[:, i + 2] = 1. * B
+            predict = np.zeros((self.out_n, pose.shape[1]))
+            mask = np.concatenate((mask, predict), axis=0)
+        elif self.miss_type == 'random_right_leg':
+            # Right Leg Random Missing
+            mask = np.ones((self.in_n, pose.shape[1]))
+            rand = np.random.choice(self.in_n, size=math.floor(self.miss_rate * self.in_n), replace=False)
+            right_leg = [1, 2, 3]
+            for i in right_leg:
+                mask[rand, 3 * i] = 0.
+                mask[rand, 3 * i + 1] = 0.
+                mask[rand, 3 * i + 2] = 0.
+        elif self.miss_type == 'random_left_arm_right_leg':
+            # Left Arm and Right Leg Random Missing
+            mask = np.ones((self.in_n, pose.shape[1]))
+            rand = np.random.choice(self.in_n, size=math.floor(self.miss_rate * self.in_n), replace=False)
+            left_arm_right_leg = [1, 2, 3, 17, 18, 19]
+            for i in left_arm_right_leg:
+                mask[rand, 3 * i] = 0.
+                mask[rand, 3 * i + 1] = 0.
+                mask[rand, 3 * i + 2] = 0.
+            predict = np.zeros((self.out_n, pose.shape[1]))
+            mask = np.concatenate((mask, predict), axis=0)
+        elif self.miss_type == 'structured_joint':
+            # Structured Joint Missing (Continuous)
+            mask = np.ones((self.in_n, pose.shape[1]))
+            rand = np.random.choice(self.in_n - 10, size=1, replace=False)
+            right_leg = [1, 2, 3]
+            for i in right_leg:
+                mask[rand[0]:rand[0] + 10, 3 * i] = 0.
+                mask[rand[0]:rand[0] + 10, 3 * i + 1] = 0.
+                mask[rand[0]:rand[0] + 10, 3 * i + 2] = 0.
+            predict = np.zeros((self.out_n, pose.shape[1]))
+            mask = np.concatenate((mask, predict), axis=0)
+        elif self.miss_type == 'structured_frame':
+            # Structured Frame Missing (Continuous)
+            mask = np.ones((self.in_n, pose.shape[1]))
+            rand = np.random.choice(self.in_n - 5, size=1, replace=False)
+            mask[rand[0]:rand[0] + 5, ] = 0.
+            predict = np.zeros((self.out_n, pose.shape[1]))
+            mask = np.concatenate((mask, predict), axis=0)
+        elif self.miss_type == 'random_frame':
+            # Random Frame Missing
+            mask = np.ones((self.in_n, pose.shape[1]))
+            rand = np.random.choice(self.in_n, size=math.floor(self.miss_rate * self.in_n), replace=False)
+            mask[rand, :] = 0.
+            predict = np.zeros((self.out_n, pose.shape[1]))
+            mask = np.concatenate((mask, predict), axis=0)
+        elif self.miss_type == 'noisy_50':
+            # Noisy Leg with Sigma=50
+            mask = np.ones((self.in_n, pose.shape[1]))
+            leg = [1, 2, 3, 6, 7, 8]
+            sigma = 50
+            noise = np.random.normal(0, sigma, size=observed.shape)
+            noise[self.in_n:, :] = 0
+            for i in range(0, self.in_n):
+                missing_leg_joints = random.sample(leg, 3)
+                for j in range(3):
+                    mask[i, missing_leg_joints[j] * 3] = 0
+                    mask[i, missing_leg_joints[j] * 3 + 1] = 0
+                    mask[i, missing_leg_joints[j] * 3 + 2] = 0
+
+                    noise[i, missing_leg_joints[j] * 3] = 0
+                    noise[i, missing_leg_joints[j] * 3 + 1] = 0
+                    noise[i, missing_leg_joints[j] * 3 + 2] = 0
+            observed = (observed * 1000 + noise) / 1000
+            predict = np.zeros((self.out_n, pose.shape[1]))
+            mask = np.concatenate((mask, predict), axis=0)
+        elif self.miss_type == 'noisy_25':
+            # Noisy Leg with Sigma=25
+            mask = np.ones((self.in_n, pose.shape[1]))
+            leg = [1, 2, 3, 6, 7, 8]
+            sigma = 25
+            noise = np.random.normal(0, sigma, size=observed.shape)
+            noise[self.in_n:, :] = 0
+            for i in range(0, self.in_n):
+                missing_leg_joints = random.sample(leg, 3)
+                for j in range(3):
+                    mask[i, missing_leg_joints[j] * 3] = 0
+                    mask[i, missing_leg_joints[j] * 3 + 1] = 0
+                    mask[i, missing_leg_joints[j] * 3 + 2] = 0
+
+                    noise[i, missing_leg_joints[j] * 3] = 0
+                    noise[i, missing_leg_joints[j] * 3 + 1] = 0
+                    noise[i, missing_leg_joints[j] * 3 + 2] = 0
+            observed = (observed * 1000 + noise) / 1000
+            predict = np.zeros((self.out_n, pose.shape[1]))
+            mask = np.concatenate((mask, predict), axis=0)
+        else:
+            mask = np.zeros((pose.shape[0], pose.shape[1]))
+            mask[0:self.in_n, :] = 1
+            mask[self.in_n:self.in_n + self.out_n, :] = 0
 
         data = {
             "pose": observed[:, self.dim_used],
