@@ -13,12 +13,7 @@
 <div align="center"> <h3> Abstract </h3>  </div>
 <div align="justify">
 
-3D human pose prediction, i.e., predicting a sequence of future human 3D poses given a sequence of past observed ones, is a challenging spatio-temporal task.
-It can be more challenging in real-world applications where occlusions  will inevitably happen, and estimated 3D coordinates of joints would contain some noise.
-We provide a unified formulation in which incomplete elements (whether in the prediction or observation) are treated as noise, and propose a conditional diffusion model that denoises them and forecasts plausible poses.
-Instead of naively predicting all future frames at once, our model consists of two cascaded sub-models, each specialized for modeling short and long horizon distributions.
-We also propose a generic framework to improve any 3D pose prediction model, by leveraging our diffusion model in two additional steps: a pre-processing step to repair the inputs, and a post-processing step to refine the outputs.
-We investigate our findings on four standard datasets (Human3.6M, HumanEva-I, AMASS, and 3DPW), and obtain significant improvements over the state of the art.
+Predicting 3D human poses in real-world scenarios, also known as human pose forecasting, is inevitably subject to noisy inputs arising from inaccurate 3D pose estimations and occlusions. To address these challenges, we propose a diffusion-based approach that can predict given noisy observations. We frame the prediction task as a denoising problem, where both observation and prediction are considered as a single sequence containing missing elements (whether in the observation or prediction horizon). All missing elements are treated as noise and denoised with our conditional diffusion model. To better handle long-term forecasting horizon, we present a temporal cascaded diffusion model. We demonstrate the benefits of our approach on four publicly available datasets (Human3.6M, HumanEva-I, AMASS, and 3DPW), outperforming the state-of-the-art. Additionally, we show that our framework is generic enough to improve any 3D pose prediction model as a pre-processing step to repair their inputs and a post-processing step to refine their outputs.
 
 </br>
 

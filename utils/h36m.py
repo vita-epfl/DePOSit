@@ -32,8 +32,8 @@ class H36M(Dataset):
         self.masks = {}
         self.data_idx = []
         seq_len = self.in_n + self.out_n
-        subs = np.array([[1, 6, 7, 8, 9], [11], [5]])
-        # acts = data_utils.define_actions(actions)
+        subs = [[1, 6, 7, 8, 9], [11], [5]]
+
         if actions is None:
             acts = ["walking", "eating", "smoking", "discussion", "directions",
                     "greeting", "phoning", "posing", "purchases", "sitting",
