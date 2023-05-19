@@ -5,7 +5,7 @@
 <h4> <i> International Conference on Robotics and Automation (ICRA), 2023 </i></h4>
 
  
-[[arXiv](https://arxiv.org/abs/2210.05669)]
+[[arXiv](https://arxiv.org/abs/2210.05669)] [[video](https://drive.google.com/file/d/18v_wd89i2SCiTQF7O2QLKs7YwSyUzUAL/view?usp=sharing)] [[poster](docs/poster_icra23.pdf)]
 
 <image src="docs/diffusion.png" width="600">
 </div>
