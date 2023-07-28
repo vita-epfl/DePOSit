@@ -80,7 +80,10 @@ def save_csv_log(head, value, is_create=False, file_name='test'):
 
 def save_state(model, optimizer, scheduler, epoch_no, foldername):
     params = {'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(), 'epoch': epoch_no}
-    torch.save(model.state_dict(), foldername + "/model.pth")
+    if isinstance(model, nn.DataParallel):
+        torch.save(model.module.state_dict(), foldername + "/model.pth")
+    else:
+        torch.save(model.state_dict(), foldername + "/model.pth")
     torch.save(params, foldername + "/params.pth")
 
 
@@ -261,14 +264,20 @@ def evaluate_32(model_s, model_l, loader, nsample=5, scaler=1, sample_strategy='
                     "timepoints": batch["timepoints"].clone()[:, :input_n + 5]
                 }
 
-                output = model_s.module.evaluate(s, nsample)
+                if isinstance(model_s, nn.DataParallel):
+                    output = model_s.module.evaluate(s, nsample)
+                else:
+                    output = model_s.evaluate(s, nsample)
                 samples, _, _, _ = output
                 samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
                 samples_mean = np.mean(samples.cpu().numpy(), axis=1)
                 batch["pose"][:, :input_n + 5] = torch.from_numpy(samples_mean)
                 batch["mask"][:, :input_n + 5] = 1
 
-                output = model_l.module.evaluate(batch, nsample)
+                if isinstance(model_l, nn.DataParallel):
+                    output = model_l.module.evaluate(batch, nsample)
+                else:
+                    output = model_l.evaluate(batch, nsample)
 
                 all_joints_seq = batch["pose_32"].clone()
 
@@ -380,7 +389,11 @@ def evaluate(model_s, model_l, loader, nsample=5, scaler=1, sample_strategy='bes
                     "timepoints": batch["timepoints"].clone()[:, :input_n + 5]
                 }
 
-                output = model_s.module.evaluate(s, nsample)
+                if isinstance(model_s, nn.DataParallel):
+                    output = model_s.module.evaluate(s, nsample)
+                else:
+                    output = model_s.evaluate(s, nsample)
+
                 samples, _, eval_impute, _ = output
                 samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
                 samples_mean = np.mean(samples.cpu().numpy(), axis=1)
@@ -388,7 +401,10 @@ def evaluate(model_s, model_l, loader, nsample=5, scaler=1, sample_strategy='bes
                 batch["pose"][:, :input_n + 5] = torch.from_numpy(samples_mean)
                 batch["mask"][:, :input_n + 5] = 1
 
-                output = model_l.module.evaluate(batch, nsample)
+                if isinstance(model_l, nn.DataParallel):
+                    output = model_l.module.evaluate(batch, nsample)
+                else:
+                    output = model_l.evaluate(batch, nsample)
 
                 samples, c_target, eval_points, observed_time = output
                 samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
@@ -520,8 +536,12 @@ if __name__ == '__main__':
         model_s.to(device)
         model_l.to(device)
 
-        model_s.load_state_dict(torch.load(f'{args.model_s}/model.pth'))
-        model_l.load_state_dict(torch.load(f'{args.model_l}/model.pth'))
+        if isinstance(model_s, nn.DataParallel) and isinstance(model_l, nn.DataParallel):
+            model_s.module.load_state_dict(torch.load(f'{args.model_s}/model.pth'))
+            model_l.module.load_state_dict(torch.load(f'{args.model_l}/model.pth'))
+        else:
+            model_s.load_state_dict(torch.load(f'{args.model_s}/model.pth'))
+            model_l.load_state_dict(torch.load(f'{args.model_l}/model.pth'))
 
         head = np.array(['act'])
         for k in range(1, output_n + 1):

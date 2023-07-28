@@ -75,7 +75,12 @@ def save_csv_log(head, value, is_create=False, file_name='test'):
 
 def save_state(model, optimizer, scheduler, epoch_no, foldername):
     params = {'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(), 'epoch': epoch_no}
-    torch.save(model.state_dict(), foldername + "/model.pth")
+    
+    if isinstance(model, nn.DataParallel):
+        torch.save(model.module.state_dict(), foldername + "/model.pth")
+    else:
+        torch.save(model.state_dict(), foldername + "/model.pth")
+
     torch.save(params, foldername + "/params.pth")
 
 
@@ -203,7 +208,11 @@ def evaluate(model, loader, nsample=5, scaler=1, sample_strategy='best'):
                 batch_size = batch["pose"].shape[0]
                 n += batch_size
 
-                output = model.module.evaluate(batch, nsample)
+                if isinstance(model, nn.DataParallel):
+                    output = model.module.evaluate(batch, nsample)
+                else:
+                    output = model.evaluate(batch, nsample)
+
                 samples, c_target, eval_points, observed_time = output
                 samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
                 c_target = c_target.permute(0, 2, 1)  # (B,L,K)
@@ -326,7 +335,11 @@ if __name__ == '__main__':
         test_loader = DataLoader(test_dataset, batch_size=config["train"]["batch_size_test"], shuffle=False,
                                  num_workers=0, pin_memory=True)
 
-        model.load_state_dict(torch.load(f'{output_dir}/model.pth'))
+        if isinstance(model, nn.DataParallel):
+            model.module.load_state_dict(torch.load(f'{output_dir}/model.pth'))
+        else:
+            model.load_state_dict(torch.load(f'{output_dir}/model.pth'))
+
         pose, target, mask, ret = evaluate(
             model,
             test_loader,
