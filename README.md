@@ -26,7 +26,7 @@ pip install -r requirements.txt
 ```
 
 ## Data
-[Human3.6M](http://vision.imar.ro/human3.6m/description.php) in exponential map can be downloaded from [here](http://www.cs.stanford.edu/people/ashesh/h3.6m.zip).
+[Human3.6M](http://vision.imar.ro/human3.6m/description.php) in exponential map can be downloaded from [here](https://drive.google.com/file/d/1iFXl51LbprPhCRUiQzBshAXXsrOtfuOh/view?usp=sharing).
 
 Directory structure: 
 ```
@@ -37,7 +37,7 @@ H3.6m
 |-- ...
 |-- S11
 ```
-[AMASS](https://amass.is.tue.mpg.de/en) and [3DPW](https://virtualhumans.mpi-inf.mpg.de/3DPW/) from their official websites.
+[AMASS](https://amass.is.tue.mpg.de/) and [3DPW](https://virtualhumans.mpi-inf.mpg.de/3DPW/) from their official websites.
 
 
 

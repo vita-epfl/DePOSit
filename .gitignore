@@ -5,3 +5,9 @@
 
 # C extensions
 *.so
+
+model_release_l
+model_release_s
+*.pth
+*.npy
+tmp*
